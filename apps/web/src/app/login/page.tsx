@@ -7,7 +7,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { login, setToken } from "@/lib/api";
-import { loginSchema, type LoginFormValues } from "@/features/auth/schema";
+import {
+  loginSchema,
+  type LoginFormInput,
+  type LoginFormValues,
+} from "@/features/auth/schema";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +28,7 @@ import { Label } from "@/components/ui/label";
 export default function LoginPage() {
   const router = useRouter();
 
-  const form = useForm<LoginFormValues>({
+  const form = useForm<LoginFormInput, unknown, LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "test@example.com",

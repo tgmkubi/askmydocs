@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 export const loginSchema = z.object({
     email: z
@@ -8,7 +8,8 @@ export const loginSchema = z.object({
     password: z.string().min(1, "Password is required."),
 });
 
-export type LoginFormValues = z.infer<typeof loginSchema>;
+export type LoginFormInput = z.input<typeof loginSchema>;
+export type LoginFormValues = z.output<typeof loginSchema>;
 
 export const registerSchema = z.object({
     email: z
@@ -18,4 +19,5 @@ export const registerSchema = z.object({
     password: z.string().min(8, "Password must be at least 8 characters."),
 });
 
-export type RegisterFormValues = z.infer<typeof registerSchema>;
+export type RegisterFormInput = z.input<typeof registerSchema>;
+export type RegisterFormValues = z.output<typeof registerSchema>;

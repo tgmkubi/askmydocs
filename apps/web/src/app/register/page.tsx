@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { register, setToken } from "@/lib/api";
 import {
     registerSchema,
+    type RegisterFormInput,
     type RegisterFormValues,
 } from "@/features/auth/schema";
 
@@ -27,7 +28,7 @@ import { Label } from "@/components/ui/label";
 export default function RegisterPage() {
     const router = useRouter();
 
-    const form = useForm<RegisterFormValues>({
+    const form = useForm<RegisterFormInput, unknown, RegisterFormValues>({
         resolver: zodResolver(registerSchema),
         defaultValues: {
             email: "test@example.com",

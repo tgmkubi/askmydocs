@@ -27,7 +27,7 @@
     "openai": "^6.44.0",
     "pg": "^8.21.0",
     "unpdf": "^1.6.2",
-    "zod": "^4.4.3"
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
