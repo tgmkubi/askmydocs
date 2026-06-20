@@ -1,0 +1,3 @@
+AskMyDocs is a RAG application. It stores uploaded documents as chunks.
+Each chunk is embedded and saved in PostgreSQL with pgvector.
+Users can ask questions and receive grounded answers with citations.

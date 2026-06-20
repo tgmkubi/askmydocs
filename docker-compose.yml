@@ -1,0 +1,44 @@
+name: askmydocs
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.3-pg16
+    container_name: askmydocs-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: askmydocs
+      POSTGRES_PASSWORD: askmydocs
+      POSTGRES_DB: askmydocs
+    ports:
+      - "5434:5432"
+    volumes:
+      - askmydocs_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U askmydocs -d askmydocs" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: askmydocs-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://askmydocs:askmydocs@db:5432/askmydocs
+      FRONTEND_URL: http://localhost:3000
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  askmydocs_db_data:

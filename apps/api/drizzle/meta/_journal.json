@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1781894711778,
+      "tag": "0000_panoramic_sprite",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781895316917,
+      "tag": "0001_same_hobgoblin",
+      "breakpoints": true
+    }
+  ]
+}
