@@ -2,20 +2,43 @@
 
 AskMyDocs is a full-stack AI document Q&A application. Users can register, upload documents, and ask questions against their own uploaded files. The backend extracts text, chunks documents, creates embeddings, stores vectors in PostgreSQL with pgvector, retrieves relevant chunks with vector similarity search, and generates grounded AI answers with citations.
 
+## Live Deployment
+
+Frontend:
+
+```txt
+https://askmydocs-eight.vercel.app
+```
+
+Backend API:
+
+```txt
+https://askmydocs-api.onrender.com
+```
+
+Database:
+
+```txt
+Neon PostgreSQL with pgvector
+```
+
 ## Features
 
 * Email/password authentication with JWT
 * Protected API routes
 * User-scoped documents and chunks
+* Protected frontend navigation with Next.js Proxy
 * Upload `.txt` and text-based `.pdf` files
-* Text extraction, chunking, embedding, and vector storage
+* Text extraction, semantic chunking, embedding, and vector storage
 * PostgreSQL + pgvector for similarity search
 * Document status tracking: `processing`, `ready`, `failed`
 * Document listing and deletion
 * Streaming AI answers
 * Citation-backed answers with retrieved source chunks
+* Source inspector panel for citations
 * Dark/light theme support
 * Responsive chat-focused UI
+* Full Docker Compose local setup
 
 ## Tech Stack
 
@@ -33,7 +56,7 @@ AskMyDocs is a full-stack AI document Q&A application. Users can register, uploa
 
 ### Frontend
 
-* Next.js
+* Next.js 16
 * TypeScript
 * React Query
 * React Hook Form
@@ -49,11 +72,12 @@ AskMyDocs is a full-stack AI document Q&A application. Users can register, uploa
 * Vector column for document chunk embeddings
 * HNSW vector index for similarity search
 
-### Local Infrastructure
+### Infrastructure
 
-* Docker Compose
-* PostgreSQL pgvector container
-* Backend API container
+* Docker Compose for local full-stack setup
+* Neon PostgreSQL for production database
+* Render for production backend API
+* Vercel for production frontend
 
 ## Project Structure
 
@@ -80,6 +104,8 @@ askmydocs/
         components/
         features/
         lib/
+        proxy.ts
+      Dockerfile
       package.json
 
   packages/
@@ -90,6 +116,30 @@ askmydocs/
   package.json
   .env.example
   README.md
+```
+
+## Requirements
+
+Recommended local versions:
+
+```txt
+Node.js 22+
+pnpm 10.24.0
+Docker Desktop
+```
+
+This project uses pnpm workspaces.
+
+Enable the expected pnpm version with Corepack:
+
+```bash
+corepack prepare pnpm@10.24.0 --activate
+```
+
+Install dependencies:
+
+```bash
+pnpm install
 ```
 
 ## Environment Variables
@@ -111,7 +161,7 @@ OPENAI_CHAT_MODEL=gpt-4o-mini
 NEXT_PUBLIC_API_URL=http://localhost:4000
 ```
 
-For local development, `DATABASE_URL` points to the Docker-exposed PostgreSQL port on the host machine:
+For local development from the host machine, `DATABASE_URL` points to the Docker-exposed PostgreSQL port:
 
 ```txt
 localhost:5434
@@ -123,13 +173,151 @@ Inside Docker Compose, the API container uses the internal service hostname:
 db:5432
 ```
 
-## Local Development Setup
+## Important Environment Notes
 
-Install dependencies:
+### Local Docker frontend
+
+When the frontend is built inside Docker, use:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+
+The browser runs outside Docker and cannot resolve Docker service names such as:
+
+```txt
+http://api:4000
+```
+
+### Production Vercel frontend
+
+When deployed to Vercel, use:
+
+```env
+NEXT_PUBLIC_API_URL=https://askmydocs-api.onrender.com
+```
+
+`NEXT_PUBLIC_*` variables are used by browser-side code and must be available during the frontend build.
+
+### Production Render backend
+
+Render API should use:
+
+```env
+DATABASE_URL=<neon-pooled-connection-string>
+JWT_SECRET=<strong-production-secret>
+FRONTEND_URL=https://askmydocs-eight.vercel.app
+OPENAI_API_KEY=<openai-api-key>
+OPENAI_CHAT_MODEL=gpt-4o-mini
+PORT=4000
+NODE_ENV=production
+```
+
+For local and production frontend support at the same time:
+
+```env
+FRONTEND_URL=http://localhost:3000,https://askmydocs-eight.vercel.app
+```
+
+## Full Docker Local Setup
+
+The project can run locally with Docker Compose.
+
+This starts:
+
+* PostgreSQL with pgvector
+* Backend API
+* Next.js frontend
+
+Build and start the default services:
 
 ```bash
-pnpm install
+docker compose up --build
 ```
+
+Open the frontend:
+
+```txt
+http://localhost:3000
+```
+
+API health check:
+
+```bash
+curl http://localhost:4000/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+If this is your first time starting the local database, run migrations:
+
+```bash
+docker compose run --rm api pnpm --filter api db:migrate
+```
+
+Then restart the services if needed:
+
+```bash
+docker compose up -d
+```
+
+## Docker Services
+
+Default services:
+
+```txt
+db
+api
+web
+```
+
+Optional tool service:
+
+```txt
+db-studio
+```
+
+The `db-studio` service is not started by default. It is available through the `tools` profile.
+
+Start Drizzle Studio:
+
+```bash
+docker compose --profile tools up db-studio
+```
+
+Then open the URL printed in the terminal, usually:
+
+```txt
+https://local.drizzle.studio?host=localhost&port=4983
+```
+
+Stop Drizzle Studio:
+
+```bash
+docker compose stop db-studio
+```
+
+Stop all Docker services:
+
+```bash
+docker compose down
+```
+
+Do not use this unless you intentionally want to remove local database volume data:
+
+```bash
+docker compose down -v
+```
+
+## Hybrid Local Development Setup
+
+You can also run only the database in Docker and run API/frontend from your terminal.
 
 Start PostgreSQL with pgvector:
 
@@ -137,7 +325,7 @@ Start PostgreSQL with pgvector:
 docker compose up -d db
 ```
 
-Run database migrations:
+Run migrations:
 
 ```bash
 pnpm --filter api db:migrate
@@ -161,75 +349,10 @@ Open the app:
 http://localhost:3000/ask
 ```
 
-Optional: open Drizzle Studio:
+Optional: open Drizzle Studio locally:
 
 ```bash
 pnpm dev:db-studio
-```
-
-## Docker Setup
-
-The Docker Compose setup currently runs:
-
-* PostgreSQL with pgvector
-* Backend API
-
-The frontend is intentionally kept outside Docker for local development and is expected to be deployed to Vercel.
-
-Start database:
-
-```bash
-docker compose up -d db
-```
-
-Build backend API image:
-
-```bash
-docker compose build api
-```
-
-Run migrations from inside the API container:
-
-```bash
-docker compose run --rm api pnpm --filter api db:migrate
-```
-
-Start backend API container:
-
-```bash
-docker compose up -d api
-```
-
-Check running containers:
-
-```bash
-docker ps
-```
-
-Check API health:
-
-```bash
-curl http://localhost:4000/health
-```
-
-Expected response:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-Run the frontend locally while backend and database run in Docker:
-
-```bash
-pnpm dev:web
-```
-
-Then open:
-
-```txt
-http://localhost:3000/ask
 ```
 
 ## Database Migrations
@@ -246,10 +369,22 @@ Generate migrations:
 pnpm --filter api db:generate
 ```
 
-Run migrations:
+Run migrations locally:
 
 ```bash
 pnpm --filter api db:migrate
+```
+
+Run migrations inside Docker:
+
+```bash
+docker compose run --rm api pnpm --filter api db:migrate
+```
+
+Run migrations against production Neon database:
+
+```bash
+DATABASE_URL="<neon-direct-connection-string>" pnpm --filter api db:migrate
 ```
 
 The migrations create:
@@ -258,8 +393,9 @@ The migrations create:
 * `users` table
 * `documents` table
 * `chunks` table
+* `document_status` enum
 * vector embedding column
-* vector index for similarity search
+* HNSW vector index for similarity search
 
 ## RAG Pipeline
 
@@ -328,12 +464,25 @@ Authentication flow:
 1. User registers with email and password.
 2. Password is hashed with Argon2.
 3. Backend returns a JWT.
-4. Frontend stores the token.
-5. Protected requests include:
+4. Frontend stores the token in local storage and cookie.
+5. Next.js Proxy checks the auth cookie for protected page navigation.
+6. Protected API requests include:
 
 ```txt
 Authorization: Bearer <token>
 ```
+
+Protected frontend routes:
+
+```txt
+/ask
+/documents
+/dashboard
+```
+
+Important note:
+
+The frontend proxy is only an early navigation guard. Real authorization is enforced by the backend API. Even if a user manually changes the cookie value, backend API requests still require a valid JWT.
 
 All document and chunk queries are scoped by the authenticated user's ID.
 
@@ -404,6 +553,8 @@ The current PDF implementation supports text-based PDFs.
 
 Scanned PDFs or image-only PDFs are not OCR-processed.
 
+The upload limit is intended to be suitable for small and medium text-based documents. Very large PDFs may need a background worker or queue-based processing in a production-grade system.
+
 ## Known Limitations
 
 * No OCR support for scanned PDFs
@@ -411,43 +562,76 @@ Scanned PDFs or image-only PDFs are not OCR-processed.
 * No document preview viewer
 * No admin panel
 * No background worker queue yet; document processing currently happens during the upload request
+* Very large documents may require async background processing
 * Backend deployment URL must be configured manually for production frontend builds
 
-## Deployment Plan
+## Deployment
 
-### Database
+### Database: Neon
 
-Use Neon PostgreSQL with pgvector enabled.
+The production database runs on Neon PostgreSQL with pgvector enabled.
 
-Production `DATABASE_URL` should point to Neon.
-
-Run migrations against the production database:
-
-```bash
-DATABASE_URL="<neon-connection-string>" pnpm --filter api db:migrate
-```
-
-### Frontend
-
-Deploy `apps/web` to Vercel.
-
-Required frontend environment variable:
+Production runtime should use the pooled Neon connection string:
 
 ```env
-NEXT_PUBLIC_API_URL=https://your-api-url.example.com
+DATABASE_URL=<neon-pooled-connection-string>
 ```
 
-### Backend
+Migration commands should use the direct Neon connection string:
 
-The backend can be deployed to one of the following:
+```bash
+DATABASE_URL="<neon-direct-connection-string>" pnpm --filter api db:migrate
+```
 
-* Render Web Service
-* Railway
-* Fly.io
-* AWS App Runner
-* AWS ECS/Fargate
+### Backend: Render
 
-For the take-home submission, a simple cloud web service is enough as long as the frontend can reach the backend over HTTPS.
+The backend is deployed as a Render Web Service.
+
+Important Render environment variables:
+
+```env
+DATABASE_URL=<neon-pooled-connection-string>
+JWT_SECRET=<strong-production-secret>
+FRONTEND_URL=https://askmydocs-eight.vercel.app
+OPENAI_API_KEY=<openai-api-key>
+OPENAI_CHAT_MODEL=gpt-4o-mini
+PORT=4000
+NODE_ENV=production
+```
+
+After changing environment variables, redeploy the Render service.
+
+Health check:
+
+```txt
+https://askmydocs-api.onrender.com/health
+```
+
+### Frontend: Vercel
+
+The frontend is deployed to Vercel from the monorepo.
+
+Vercel project settings:
+
+```txt
+Framework Preset: Next.js
+Root Directory: apps/web
+Install Command: pnpm install
+Build Command: pnpm build
+Output Directory: .next
+```
+
+Required Vercel environment variable:
+
+```env
+NEXT_PUBLIC_API_URL=https://askmydocs-api.onrender.com
+```
+
+Production frontend:
+
+```txt
+https://askmydocs-eight.vercel.app
+```
 
 ## Suggested Demo Flow
 
@@ -466,16 +650,34 @@ For the take-home submission, a simple cloud web service is enough as long as th
 
 ## Local Useful Commands
 
-Start DB:
+Install dependencies:
 
 ```bash
-docker compose up -d db
+pnpm install
 ```
 
-Build API Docker image:
+Run local frontend:
 
 ```bash
-docker compose build api
+pnpm dev:web
+```
+
+Run local API:
+
+```bash
+pnpm dev:api
+```
+
+Run local Drizzle Studio:
+
+```bash
+pnpm dev:db-studio
+```
+
+Run full Docker setup:
+
+```bash
+docker compose up --build
 ```
 
 Run migrations from Docker:
@@ -484,10 +686,10 @@ Run migrations from Docker:
 docker compose run --rm api pnpm --filter api db:migrate
 ```
 
-Start API Docker container:
+Run optional Drizzle Studio from Docker:
 
 ```bash
-docker compose up -d api
+docker compose --profile tools up db-studio
 ```
 
 Check API logs:
@@ -496,28 +698,24 @@ Check API logs:
 docker compose logs -f api
 ```
 
-Stop containers:
+Stop Docker services:
 
 ```bash
 docker compose down
 ```
 
-Do not use this unless you intentionally want to remove database volume data:
+Remove local database volume only if intentionally needed:
 
 ```bash
 docker compose down -v
 ```
 
-Run frontend locally:
+Run production build checks:
 
 ```bash
-pnpm dev:web
-```
-
-Run Drizzle Studio:
-
-```bash
-pnpm dev:db-studio
+pnpm --filter api build
+pnpm --filter web build
+docker compose build
 ```
 
 ## Submission Notes
@@ -535,5 +733,7 @@ The application satisfies the core challenge requirements:
 * Grounded AI answers
 * Citations
 * Streaming response
-* Dockerized backend and database
+* Dockerized database, backend, and frontend
+* Optional Dockerized Drizzle Studio
+* Deployed frontend, backend, and database
 * Documented local setup and migration flow

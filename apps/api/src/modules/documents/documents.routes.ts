@@ -24,7 +24,8 @@ export const documentsRouter = Router();
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
-        fileSize: 5 * 1024 * 1024, // 5 MB
+        fileSize: 5 * 1024 * 1024, // 5 MB,
+        files: 1,
     },
     fileFilter: (_req, file, callback) => {
         if (!isSupportedDocumentMimeType(file.mimetype)) {

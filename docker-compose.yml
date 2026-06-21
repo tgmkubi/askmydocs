@@ -40,5 +40,39 @@ services:
       db:
         condition: service_healthy
 
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000
+    container_name: askmydocs-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  db-studio:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: askmydocs-db-studio
+    profiles:
+      - tools
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://askmydocs:askmydocs@db:5432/askmydocs
+    ports:
+      - "4983:4983"
+    command: [ "pnpm", "--filter", "api", "exec", "drizzle-kit", "studio", "--host=0.0.0.0", "--port=4983" ]
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   askmydocs_db_data:

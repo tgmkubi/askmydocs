@@ -36,7 +36,69 @@ export type AskResponse = {
     citations: AskCitation[];
 };
 
+const TOKEN_KEY = "askmydocs_token";
+
+function getCookie(name: string) {
+    if (typeof document === "undefined") {
+        return null;
+    }
+
+    const value = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith(`${name}=`))
+        ?.split("=")[1];
+
+    return value ? decodeURIComponent(value) : null;
+}
+
+function setAuthCookie(token: string) {
+    if (typeof document === "undefined") {
+        return;
+    }
+
+    const maxAge = 60 * 60 * 24 * 7;
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+
+    document.cookie = `${TOKEN_KEY}=${encodeURIComponent(
+        token
+    )}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+}
+
+function clearAuthCookie() {
+    if (typeof document === "undefined") {
+        return;
+    }
+
+    document.cookie = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+}
+
 export function getToken() {
+    if (typeof window === "undefined") {
+        return null;
+    }
+
+    return localStorage.getItem(TOKEN_KEY) ?? getCookie(TOKEN_KEY);
+}
+
+export function setToken(token: string) {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    localStorage.setItem(TOKEN_KEY, token);
+    setAuthCookie(token);
+}
+
+export function clearToken() {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    localStorage.removeItem(TOKEN_KEY);
+    clearAuthCookie();
+}
+
+/* export function getToken() {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("askmydocs_token");
 }
@@ -47,7 +109,7 @@ export function setToken(token: string) {
 
 export function clearToken() {
     localStorage.removeItem("askmydocs_token");
-}
+} */
 
 export async function register(input: {
     email: string;

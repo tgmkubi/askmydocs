@@ -5,6 +5,7 @@ import { env } from "./config/env.ts";
 import { authRouter } from "./modules/auth/auth.routes.ts";
 import { documentsRouter } from "./modules/documents/documents.routes.ts";
 import { askRouter } from "./modules/ask/ask.routes.ts";
+import multer from "multer";
 
 const app = express();
 
@@ -49,6 +50,34 @@ app.use(
             return res.status(400).json({
                 message: "Validation error",
                 issues: error.issues,
+            });
+        }
+
+        if (error instanceof multer.MulterError) {
+            if (error.code === "LIMIT_FILE_SIZE") {
+                return res.status(400).json({
+                    message: "File size must be less than 5MB",
+                });
+            }
+            if (error.code === "LIMIT_FILE_COUNT") {
+                return res.status(400).json({
+                    message: "File count must be less than 1",
+                });
+            }
+            if (error.code === "LIMIT_UNEXPECTED_FILE") {
+                return res.status(400).json({
+                    message: "Unexpected file",
+                });
+            }
+            return res.status(400).json({
+                message: `File upload error: ${error.code} ${error.message}`,
+            });
+        }
+
+        if (error instanceof Error) {
+            return res.status(500).json({
+                message: "Internal server error",
+                cause: error.cause,
             });
         }
 
