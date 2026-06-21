@@ -3,7 +3,7 @@ import { Providers } from "./providers";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { AppNavbar } from "@/components/app-navbar";
+import { AuthenticatedNavbar } from "@/components/authenticated-navbar";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -34,18 +34,6 @@ export const metadata: Metadata = {
     type: "website",
   },
 
-  /* twitter: {
-    card: "summary_large_image",
-  },
-  icons: {
-    icon: [
-      { url: "/favicon-5312.png", type: "image/png" },
-    ],
-    shortcut: ["/favicon-5312.png"],
-    apple: [
-      { url: "/favicon-5312.png" },
-    ],
-  }, */
 };
 
 export default function RootLayout({
@@ -68,7 +56,7 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <Providers>
-          <AppNavbar />
+          <AuthenticatedNavbar />
           {children}
         </Providers>
       </body>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { clearToken, getMe } from "@/lib/api";
 
@@ -17,6 +17,7 @@ import {
 
 export default function DashboardPage() {
     const router = useRouter();
+    const queryClient = useQueryClient();
 
     const meQuery = useQuery({
         queryKey: ["me"],
@@ -25,6 +26,7 @@ export default function DashboardPage() {
     });
 
     function handleLogout() {
+        queryClient.clear();
         clearToken();
         router.push("/login");
     }

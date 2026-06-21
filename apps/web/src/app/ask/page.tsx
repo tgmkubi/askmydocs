@@ -21,11 +21,18 @@ import {
 } from "lucide-react";
 
 import { askQuestionStream, type AskCitation } from "@/lib/api";
-import { DocumentsPanel } from "@/features/documents/documents-panel";
+import { AskDocumentsPanel } from "@/features/documents/ask-documents-panel";
 import { cn } from "@/lib/utils";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
     Sheet,
@@ -114,16 +121,20 @@ function CitationButton({
     return (
         <button
             type="button"
+            title={`[${citation.citationNumber}] ${citation.filename}`}
             className={cn(
-                "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+                "inline-flex max-w-full items-center gap-1 overflow-hidden rounded-md border px-2 py-1 text-xs font-medium transition-colors",
                 isSelected
                     ? "border-primary bg-primary text-primary-foreground"
                     : "bg-background/60 text-foreground hover:bg-muted"
             )}
             onClick={() => onSelect(citation)}
         >
-            [{citation.citationNumber}] {citation.filename} ·{" "}
-            {citation.similarity.toFixed(3)}
+            <span className="shrink-0">[{citation.citationNumber}]</span>
+            <span className="min-w-0 max-w-52 truncate">{citation.filename}</span>
+            <span className="shrink-0 text-muted-foreground">
+                {citation.similarity.toFixed(3)}
+            </span>
         </button>
     );
 }
@@ -137,7 +148,7 @@ function SourcePanel({
 }) {
     return (
         <div className="flex h-full min-h-0 flex-col bg-background">
-            <div className="flex items-start justify-between gap-3 border-b p-4">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3">
                 <div>
                     <h2 className="font-semibold">Source inspector</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -153,41 +164,51 @@ function SourcePanel({
                 ) : null}
             </div>
 
-            <ScrollArea className="flex-1">
-                <div className="p-4">
+            <ScrollArea className="min-h-0 flex-1">
+                <div className="space-y-3 p-4">
                     {!citation ? (
-                        <div className="rounded-2xl border bg-card p-5 text-sm text-muted-foreground">
-                            Click a citation under an assistant answer to inspect the exact
-                            retrieved chunk.
-                        </div>
+                        <Card size="sm">
+                            <CardContent className="pt-0 text-sm text-muted-foreground">
+                                Click a citation under an assistant answer to inspect the exact
+                                retrieved chunk.
+                            </CardContent>
+                        </Card>
                     ) : (
-                        <div className="space-y-4">
-                            <div className="rounded-2xl border bg-card p-4">
-                                <div className="mb-3 flex items-start gap-2">
-                                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                                    <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium">
-                                            {citation.filename}
-                                        </p>
-                                        <p className="mt-1 text-xs text-muted-foreground">
-                                            Citation [{citation.citationNumber}] · Chunk{" "}
-                                            {citation.chunkIndex}
-                                        </p>
+                        <>
+                            <Card size="sm">
+                                <CardHeader>
+                                    <div className="flex items-start gap-2">
+                                        <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                                        <div className="min-w-0">
+                                            <CardTitle className="truncate text-sm">
+                                                {citation.filename}
+                                            </CardTitle>
+                                            <CardDescription className="mt-1 text-xs">
+                                                Citation [{citation.citationNumber}] · Chunk{" "}
+                                                {citation.chunkIndex}
+                                            </CardDescription>
+                                        </div>
                                     </div>
-                                </div>
+                                </CardHeader>
 
-                                <Badge variant="secondary">
-                                    Similarity {citation.similarity.toFixed(3)}
-                                </Badge>
-                            </div>
+                                <CardContent className="pt-0">
+                                    <Badge variant="secondary">
+                                        Similarity {citation.similarity.toFixed(3)}
+                                    </Badge>
+                                </CardContent>
+                            </Card>
 
-                            <div className="rounded-2xl border bg-card p-4">
-                                <p className="mb-3 text-sm font-medium">Retrieved context</p>
-                                <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                                    {citation.content}
-                                </p>
-                            </div>
-                        </div>
+                            <Card size="sm">
+                                <CardHeader>
+                                    <CardTitle className="text-sm">Retrieved context</CardTitle>
+                                </CardHeader>
+                                <CardContent className="pt-0">
+                                    <p className="whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
+                                        {citation.content}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </>
                     )}
                 </div>
             </ScrollArea>
@@ -350,16 +371,14 @@ export default function AskPage() {
     }
 
     return (
-        <main className="h-[calc(100vh-4rem)] overflow-hidden bg-background">
-            <div className="grid h-full grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_380px]">
-                <aside className="hidden min-h-0 overflow-hidden border-r bg-muted/20 lg:block">
-                    <div className="h-full overflow-y-auto p-4">
-                        <DocumentsPanel compact showHeader={false} />
-                    </div>
+        <main className="h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-background">
+            <div className="grid h-full min-h-0 overflow-hidden grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_360px]">
+                <aside className="hidden min-h-0 overflow-hidden border-r bg-muted/20 p-4 lg:block">
+                    <AskDocumentsPanel className="h-full" />
                 </aside>
 
-                <section className="flex min-h-0 flex-col">
-                    <header className="border-b bg-background/95 px-4 py-4 backdrop-blur">
+                <section className="flex min-h-0 flex-col overflow-hidden">
+                    <header className="shrink-0 border-b bg-background/95 px-4 py-3 backdrop-blur">
                         <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <div className="flex items-center gap-2">
@@ -392,7 +411,7 @@ export default function AskPage() {
                                         </SheetHeader>
 
                                         <div className="mt-4">
-                                            <DocumentsPanel compact showHeader={false} />
+                                            <AskDocumentsPanel />
                                         </div>
                                     </SheetContent>
                                 </Sheet>
@@ -424,23 +443,25 @@ export default function AskPage() {
                         </div>
                     </header>
 
-                    <ScrollArea className="flex-1">
-                        <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6">
+                    <ScrollArea className="min-h-0 flex-1">
+                        <div className="mx-auto flex min-h-full max-w-4xl flex-col gap-6 px-4 py-6">
                             {messages.length === 0 ? (
-                                <div className="flex min-h-[45vh] items-center justify-center">
-                                    <div className="max-w-md rounded-2xl border bg-card p-6 text-center shadow-sm">
-                                        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted">
-                                            <Bot className="h-5 w-5" />
-                                        </div>
-                                        <h2 className="text-lg font-medium">
-                                            Start asking your documents
-                                        </h2>
-                                        <p className="mt-2 text-sm text-muted-foreground">
-                                            Upload documents from the left panel, then ask questions
-                                            here. Sources will appear under answers and in the right
-                                            panel.
-                                        </p>
-                                    </div>
+                                <div className="flex min-h-[45vh] flex-1 items-center justify-center">
+                                    <Card className="w-full max-w-md text-center" size="sm">
+                                        <CardContent className="pt-0">
+                                            <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+                                                <Bot className="h-5 w-5" />
+                                            </div>
+                                            <h2 className="text-lg font-medium">
+                                                Start asking your documents
+                                            </h2>
+                                            <p className="mt-2 text-sm text-muted-foreground">
+                                                Upload documents from the left panel, then ask questions
+                                                here. Sources will appear under answers and in the right
+                                                panel.
+                                            </p>
+                                        </CardContent>
+                                    </Card>
                                 </div>
                             ) : null}
 
@@ -469,7 +490,7 @@ export default function AskPage() {
 
                                         <div
                                             className={cn(
-                                                "max-w-[88%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%]",
+                                                "min-w-0 max-w-[88%] overflow-hidden rounded-xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%]",
                                                 isUser
                                                     ? "bg-primary text-primary-foreground"
                                                     : "border bg-card text-card-foreground"
@@ -478,7 +499,7 @@ export default function AskPage() {
                                             {isAssistant && !message.content && isStreaming ? (
                                                 <p className="text-muted-foreground">Thinking...</p>
                                             ) : (
-                                                <p className="whitespace-pre-wrap leading-6">
+                                                <p className="whitespace-pre-wrap break-words leading-6">
                                                     {message.content}
                                                     {isStreaming ? (
                                                         <span className="ml-1 animate-pulse">▌</span>
@@ -530,9 +551,9 @@ export default function AskPage() {
                         </div>
                     </ScrollArea>
 
-                    <footer className="border-t bg-background/95 p-4 backdrop-blur">
+                    <footer className="shrink-0 border-t bg-background/95 p-3 backdrop-blur sm:p-4">
                         <form onSubmit={handleSubmit} className="mx-auto max-w-4xl">
-                            <div className="rounded-2xl border bg-card p-2 shadow-sm">
+                            <div className="rounded-xl border bg-card p-2 shadow-sm">
                                 <Textarea
                                     ref={textareaRef}
                                     value={question}

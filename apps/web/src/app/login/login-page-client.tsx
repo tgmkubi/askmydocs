@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -30,17 +30,20 @@ export function LoginPageClient() {
     const searchParams = useSearchParams();
     const redirectTo = searchParams.get("redirectTo") ?? "/ask";
 
+    const queryClient = useQueryClient();
+
     const form = useForm<LoginFormInput, unknown, LoginFormValues>({
         resolver: zodResolver(loginSchema),
         defaultValues: {
-            email: "test@example.com",
-            password: "password123",
+            email: "",
+            password: "",
         },
     });
 
     const loginMutation = useMutation({
         mutationFn: login,
         onSuccess: (data) => {
+            queryClient.clear();
             setToken(data.token);
             router.push(redirectTo);
         },

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -27,18 +27,20 @@ import { Label } from "@/components/ui/label";
 
 export default function RegisterPage() {
     const router = useRouter();
+    const queryClient = useQueryClient();
 
     const form = useForm<RegisterFormInput, unknown, RegisterFormValues>({
         resolver: zodResolver(registerSchema),
         defaultValues: {
-            email: "test@example.com",
-            password: "password123",
+            email: "",
+            password: "",
         },
     });
 
     const registerMutation = useMutation({
         mutationFn: register,
         onSuccess: (data) => {
+            queryClient.clear();
             setToken(data.token);
             router.push("/ask");
         },

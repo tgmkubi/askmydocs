@@ -3,7 +3,14 @@
 import { FormEvent, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Trash2, Upload } from "lucide-react";
+import {
+    AlertCircle,
+    CheckCircle2,
+    Clock3,
+    FileText,
+    Trash2,
+    Upload,
+} from "lucide-react";
 
 import {
     deleteDocument,
@@ -43,6 +50,18 @@ function getStatusLabel(status: UserDocument["status"]) {
     return "Processing";
 }
 
+function StatusIcon({ status }: { status: UserDocument["status"] }) {
+    if (status === "ready") {
+        return <CheckCircle2 className="h-3.5 w-3.5" />;
+    }
+
+    if (status === "failed") {
+        return <AlertCircle className="h-3.5 w-3.5" />;
+    }
+
+    return <Clock3 className="h-3.5 w-3.5" />;
+}
+
 export function DocumentsPanel({
     compact = false,
     showHeader = true,
@@ -56,6 +75,8 @@ export function DocumentsPanel({
         queryKey: ["documents"],
         queryFn: getDocuments,
         retry: false,
+        staleTime: 0,
+        refetchOnMount: "always",
         refetchInterval: (query) => {
             const data = query.state.data as { documents: UserDocument[] } | undefined;
 
@@ -98,7 +119,12 @@ export function DocumentsPanel({
     const documents = documentsQuery.data?.documents ?? [];
 
     return (
-        <div className={cn("space-y-4", className)}>
+        <div
+            className={cn(
+                compact ? "flex min-h-0 flex-col gap-4" : "space-y-4",
+                className
+            )}
+        >
             {showHeader ? (
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -118,7 +144,7 @@ export function DocumentsPanel({
                 </div>
             ) : null}
 
-            <Card>
+            <Card size={compact ? "sm" : "default"} className={compact ? "shrink-0" : undefined}>
                 <CardHeader className={compact ? "space-y-1 p-4" : undefined}>
                     <CardTitle className={compact ? "text-base" : undefined}>
                         Upload document
@@ -130,7 +156,7 @@ export function DocumentsPanel({
                     </CardDescription>
                 </CardHeader>
 
-                <CardContent className={compact ? "space-y-4 p-4 pt-0" : "space-y-4"}>
+                <CardContent className={compact ? "space-y-3 p-4 pt-0" : "space-y-4"}>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor={compact ? "ask-document-file" : "document-file"}>
@@ -142,6 +168,7 @@ export function DocumentsPanel({
                                 ref={fileInputRef}
                                 type="file"
                                 accept=".txt,.pdf,text/plain,application/pdf"
+                                className={compact ? "h-9 rounded-full text-xs" : undefined}
                                 disabled={uploadMutation.isPending}
                                 onChange={(event) => {
                                     const file = event.target.files?.[0] ?? null;
@@ -155,8 +182,12 @@ export function DocumentsPanel({
                         </div>
 
                         {selectedFile ? (
-                            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-                                Selected: <span className="font-medium">{selectedFile.name}</span>
+                            <div className="flex min-w-0 items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
+                                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                <span className="truncate">
+                                    Selected:{" "}
+                                    <span className="font-medium">{selectedFile.name}</span>
+                                </span>
                             </div>
                         ) : (
                             <p className="text-sm text-muted-foreground">
@@ -196,11 +227,20 @@ export function DocumentsPanel({
                 </CardContent>
             </Card>
 
-            <Card className={compact ? "overflow-hidden" : undefined}>
-                <CardHeader className={compact ? "space-y-1 p-4" : undefined}>
-                    <CardTitle className={compact ? "text-base" : undefined}>
-                        Your documents
-                    </CardTitle>
+            <Card
+                size={compact ? "sm" : "default"}
+                className={compact ? "min-h-0 flex-1 overflow-hidden" : undefined}
+            >
+                <CardHeader className={compact ? "space-y-1 border-b p-4" : undefined}>
+                    <div className="flex items-center justify-between gap-3">
+                        <CardTitle className={compact ? "text-base" : undefined}>
+                            Your documents
+                        </CardTitle>
+
+                        {documents.length > 0 ? (
+                            <Badge variant="outline">{documents.length}</Badge>
+                        ) : null}
+                    </div>
                     <CardDescription>
                         {compact
                             ? "Available context for chat."
@@ -208,7 +248,7 @@ export function DocumentsPanel({
                     </CardDescription>
                 </CardHeader>
 
-                <CardContent className={compact ? "p-0" : undefined}>
+                <CardContent className={compact ? "flex min-h-0 flex-1 flex-col p-0" : undefined}>
                     {documentsQuery.isLoading ? (
                         <p className={compact ? "p-4 text-sm text-muted-foreground" : "text-sm text-muted-foreground"}>
                             Loading documents...
@@ -227,38 +267,54 @@ export function DocumentsPanel({
                         </p>
                     ) : null}
 
-                    <ScrollArea className={compact ? "h-[calc(100vh-25rem)] min-h-72" : "max-h-[480px]"}>
+                    <ScrollArea className={compact ? "min-h-0 flex-1" : "max-h-[480px]"}>
                         <div className={compact ? "space-y-2 p-4 pt-0" : "space-y-3"}>
                             {documents.map((document) => (
                                 <article
                                     key={document.id}
                                     className={cn(
-                                        "rounded-lg border",
+                                        "w-full min-w-0 overflow-hidden rounded-lg border bg-background/60 transition-colors hover:bg-muted/40",
                                         compact ? "p-3" : "p-4"
                                     )}
                                 >
-                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                        <div className="min-w-0 space-y-2">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                    <div className="flex min-w-0 items-start gap-3">
+                                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border bg-muted">
+                                            <FileText className="h-4 w-4 text-muted-foreground" />
+                                        </div>
 
-                                                <h3 className="truncate font-medium">
+                                        <div className="min-w-0 flex-1 overflow-hidden space-y-2">
+                                            <div className="min-w-0">
+                                                <h3
+                                                    className="block max-w-full truncate text-sm font-medium"
+                                                    title={document.filename}
+                                                >
                                                     {document.filename}
                                                 </h3>
-
-                                                <Badge variant={getStatusBadgeVariant(document.status)}>
-                                                    {getStatusLabel(document.status)}
-                                                </Badge>
                                             </div>
 
-                                            <div className="space-y-1 text-sm text-muted-foreground">
+                                            <div
+                                                className={cn(
+                                                    "min-w-0 items-center gap-2 text-sm text-muted-foreground",
+                                                    compact ? "flex overflow-hidden" : "flex flex-wrap"
+                                                )}
+                                            >
+                                                <Badge
+                                                    variant={getStatusBadgeVariant(document.status)}
+                                                    className="shrink-0 gap-1"
+                                                >
+                                                    <StatusIcon status={document.status} />
+                                                    {getStatusLabel(document.status)}
+                                                </Badge>
+
                                                 {!compact ? (
-                                                    <p>
+                                                    <span>
                                                         Created at{" "}
                                                         {new Date(document.createdAt).toLocaleString()}
-                                                    </p>
+                                                    </span>
                                                 ) : null}
-                                                <p>Chunks: {document.chunksCount}</p>
+                                                <span className={compact ? "shrink-0 text-xs" : undefined}>
+                                                    Chunks: {document.chunksCount}
+                                                </span>
                                             </div>
 
                                             {document.errorMessage ? (
@@ -271,6 +327,7 @@ export function DocumentsPanel({
                                         <Button
                                             variant="outline"
                                             size={compact ? "icon" : "sm"}
+                                            className={cn("shrink-0", compact ? "h-8 w-8" : undefined)}
                                             disabled={deleteMutation.isPending}
                                             onClick={() =>
                                                 deleteMutation.mutate({ documentId: document.id })

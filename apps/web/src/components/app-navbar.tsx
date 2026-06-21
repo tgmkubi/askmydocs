@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
     Bot,
     FileText,
@@ -47,6 +48,7 @@ function isActivePath(pathname: string, href: string) {
 export function AppNavbar() {
     const pathname = usePathname();
     const router = useRouter();
+    const queryClient = useQueryClient();
 
     const isAuthPage = pathname === "/login" || pathname === "/register";
 
@@ -55,6 +57,7 @@ export function AppNavbar() {
     }
 
     function handleLogout() {
+        queryClient.clear();
         clearToken();
         router.push("/login");
     }
