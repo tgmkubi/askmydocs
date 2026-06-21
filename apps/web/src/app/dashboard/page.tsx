@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { CHAT_STORAGE_KEY } from "@/lib/storage-keys";
 import { clearToken, getMe } from "@/lib/api";
 
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ export default function DashboardPage() {
     });
 
     function handleLogout() {
+        localStorage.removeItem(CHAT_STORAGE_KEY);
         queryClient.clear();
         clearToken();
         router.push("/login");

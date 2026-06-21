@@ -20,6 +20,7 @@ import {
     X,
 } from "lucide-react";
 
+import { CHAT_STORAGE_KEY } from "@/lib/storage-keys";
 import { askQuestionStream, type AskCitation } from "@/lib/api";
 import { AskDocumentsPanel } from "@/features/documents/ask-documents-panel";
 import { cn } from "@/lib/utils";
@@ -226,11 +227,43 @@ export default function AskPage() {
         useState<AskCitation | null>(null);
     const [isDocumentsSheetOpen, setIsDocumentsSheetOpen] = useState(false);
     const [isSourceSheetOpen, setIsSourceSheetOpen] = useState(false);
+    const [hasLoadedStoredMessages, setHasLoadedStoredMessages] = useState(false);
 
     const { textareaRef, adjustHeight } = useAutoResizeTextarea({
         minHeight: 52,
         maxHeight: 180,
     });
+
+    useEffect(() => {
+        const storedMessages = localStorage.getItem(CHAT_STORAGE_KEY);
+
+        if (!storedMessages) {
+            setHasLoadedStoredMessages(true);
+            return;
+        }
+
+        try {
+            const parsedMessages = JSON.parse(storedMessages) as ChatMessage[];
+            setMessages(parsedMessages);
+        } catch {
+            localStorage.removeItem(CHAT_STORAGE_KEY);
+        } finally {
+            setHasLoadedStoredMessages(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!hasLoadedStoredMessages) {
+            return;
+        }
+
+        if (messages.length === 0) {
+            localStorage.removeItem(CHAT_STORAGE_KEY);
+            return;
+        }
+
+        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+    }, [hasLoadedStoredMessages, messages]);
 
     function updateAssistantMessage(
         messageId: string,

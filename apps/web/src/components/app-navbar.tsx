@@ -11,7 +11,9 @@ import {
     Menu,
 } from "lucide-react";
 
+import { CHAT_STORAGE_KEY } from "@/lib/storage-keys";
 import { clearToken } from "@/lib/api";
+
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -57,6 +59,7 @@ export function AppNavbar() {
     }
 
     function handleLogout() {
+        localStorage.removeItem(CHAT_STORAGE_KEY);
         queryClient.clear();
         clearToken();
         router.push("/login");
