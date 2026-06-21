@@ -1,8 +1,8 @@
 # AskMyDocs
 
-AskMyDocs is a full-stack AI document Q&A application. Users can register, upload documents, and ask questions against their own uploaded files. The backend extracts text, chunks documents, creates embeddings, stores vectors in PostgreSQL with pgvector, retrieves relevant chunks with vector similarity search, and generates grounded AI answers with citations.
+AskMyDocs is a full-stack document Q&A app. A user can register, upload `.txt` or text-based `.pdf` files, and ask questions against only their own documents. The API extracts text, chunks it, creates OpenAI embeddings, stores vectors in PostgreSQL with pgvector, retrieves relevant chunks, and streams grounded answers with citations to the Next.js UI.
 
-## Live Deployment
+## Live App
 
 Frontend:
 
@@ -22,226 +22,143 @@ Database:
 Neon PostgreSQL with pgvector
 ```
 
-## Features
+## Stack
 
-* Email/password authentication with JWT
-* Protected API routes
-* User-scoped documents and chunks
-* Protected frontend navigation with Next.js Proxy
-* Upload `.txt` and text-based `.pdf` files
-* Text extraction, semantic chunking, embedding, and vector storage
-* PostgreSQL + pgvector for similarity search
-* Document status tracking: `processing`, `ready`, `failed`
-* Document listing and deletion
-* Streaming AI answers
-* Citation-backed answers with retrieved source chunks
-* Source inspector panel for citations
-* Dark/light theme support
-* Responsive chat-focused UI
-* Full Docker Compose local setup
+This is a pnpm workspace with two apps:
 
-## Tech Stack
+```txt
+apps/api  - Express.js API, Drizzle, PostgreSQL, pgvector, OpenAI
+apps/web  - Next.js 16, React Query, shadcn/ui, Tailwind CSS
+```
 
-### Backend
+Backend choices:
 
-* Node.js
-* Express.js
-* TypeScript
-* JWT authentication with `jose`
+* Node.js, Express.js, TypeScript
+* JWT auth with `jose`
 * Argon2 password hashing
-* Multer file upload
-* unpdf PDF text extraction
-* OpenAI embeddings and chat generation
+* Multer for upload handling
+* `unpdf` for text-based PDF extraction
 * Drizzle ORM and Drizzle Kit migrations
 
-### Frontend
+Frontend choices:
 
-* Next.js 16
-* TypeScript
-* React Query
-* React Hook Form
-* Zod
-* Tailwind CSS
-* shadcn/ui
-* next-themes
+* Next.js 16 and React 19
+* React Query for server state, invalidation, and polling
+* React Hook Form and Zod for auth forms
+* shadcn/ui, Tailwind CSS, lucide-react
 
-### Database
+Database choices:
 
 * PostgreSQL
 * pgvector extension
-* Vector column for document chunk embeddings
-* HNSW vector index for similarity search
+* `vector(1536)` embedding column
+* HNSW index with `vector_cosine_ops`
 
-### Infrastructure
+## AI, Embeddings, Chunking, and Retrieval
 
-* Docker Compose for local full-stack setup
-* Neon PostgreSQL for production database
-* Render for production backend API
-* Vercel for production frontend
+AskMyDocs uses OpenAI for both embeddings and answer generation.
 
-## Project Structure
+| Area                 | Choice                              | Why                                                                                             |
+| -------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Embedding model      | `text-embedding-3-small`            | Good balance of retrieval quality, speed, and cost for a document Q&A app.                      |
+| Embedding dimensions | `1536`                              | Default vector size for `text-embedding-3-small`; stored as `vector(1536)` in PostgreSQL.       |
+| Chat model           | `gpt-4o-mini`                       | Cost-efficient and fast enough for streamed chat responses.                                     |
+| Vector database      | PostgreSQL + pgvector               | Keeps documents, metadata, users, and vectors in one database.                                  |
+| Similarity metric    | Cosine distance with pgvector `<=>` | Suitable for comparing semantic similarity between embedded text chunks and embedded questions. |
 
-```txt
-askmydocs/
-  apps/
-    api/
-      src/
-        config/
-        db/
-        modules/
-          ai/
-          ask/
-          auth/
-          documents/
-      drizzle/
-      Dockerfile
-      drizzle.config.ts
-      package.json
-
-    web/
-      src/
-        app/
-        components/
-        features/
-        lib/
-        proxy.ts
-      Dockerfile
-      package.json
-
-  packages/
-    shared/
-
-  docker-compose.yml
-  pnpm-workspace.yaml
-  package.json
-  .env.example
-  README.md
-```
-
-## Requirements
-
-Recommended local versions:
-
-```txt
-Node.js 22+
-pnpm 10.24.0
-Docker Desktop
-```
-
-This project uses pnpm workspaces.
-
-Enable the expected pnpm version with Corepack:
-
-```bash
-corepack prepare pnpm@10.24.0 --activate
-```
-
-Install dependencies:
-
-```bash
-pnpm install
-```
-
-## Environment Variables
-
-Create a `.env` file in the project root:
+The chat model can be changed with:
 
 ```env
-# API
-PORT=4000
-DATABASE_URL=postgresql://askmydocs:askmydocs@localhost:5434/askmydocs
-JWT_SECRET=replace-me-with-a-long-secret
-FRONTEND_URL=http://localhost:3000
-
-# AI
-OPENAI_API_KEY=replace-me
 OPENAI_CHAT_MODEL=gpt-4o-mini
-
-# Web
-NEXT_PUBLIC_API_URL=http://localhost:4000
 ```
 
-For local development from the host machine, `DATABASE_URL` points to the Docker-exposed PostgreSQL port:
+### Chunking Strategy
+
+Documents are normalized before chunking. The normalizer removes common PDF text artifacts, joins broken line breaks, trims repeated whitespace, and removes simple page markers.
+
+Current chunking settings:
 
 ```txt
-localhost:5434
+Chunk size: 1200 characters
+Chunk overlap: 220 characters
 ```
 
-Inside Docker Compose, the API container uses the internal service hostname:
+I chose this strategy because each chunk should be focused enough for accurate retrieval, but still large enough to preserve useful local context. The 220-character overlap helps reduce the risk of losing meaning when an answer spans the boundary between two chunks.
+
+Very long paragraphs are split by sentence first. If a sentence or paragraph is still too long, the system falls back to word-based splitting.
+
+### Retrieval and Grounding
+
+When a user asks a question:
+
+1. The API embeds the question with `text-embedding-3-small`.
+2. It searches only chunks owned by the authenticated user.
+3. It orders results by pgvector cosine distance using `<=>`.
+4. It converts distance to similarity with `1 - distance`.
+5. It keeps the top matches and filters weak matches.
+6. It sends the remaining chunks to OpenAI as context.
+7. The streamed response includes citation metadata for the retrieved chunks.
+
+Current retrieval settings:
 
 ```txt
-db:5432
+TOP_K = 4
+MIN_SIMILARITY = 0.15
 ```
 
-## Important Environment Notes
+### Hallucination Prevention
 
-### Local Docker frontend
+Hallucination prevention is handled in two places:
 
-When the frontend is built inside Docker, use:
+* The API returns `I don't know based on the uploaded documents.` when no chunk passes the similarity threshold.
+* The model instructions say to answer only from the provided context, avoid outside knowledge, and cite used chunks with `[1]`, `[2]`, etc.
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:4000
-```
+This keeps the answer grounded in the user's uploaded documents instead of relying on the model's general knowledge.
 
-The browser runs outside Docker and cannot resolve Docker service names such as:
 
-```txt
-http://api:4000
-```
+## Environment
 
-### Production Vercel frontend
-
-When deployed to Vercel, use:
-
-```env
-NEXT_PUBLIC_API_URL=https://askmydocs-api.onrender.com
-```
-
-`NEXT_PUBLIC_*` variables are used by browser-side code and must be available during the frontend build.
-
-### Production Render backend
-
-Render API should use:
-
-```env
-DATABASE_URL=<neon-pooled-connection-string>
-JWT_SECRET=<strong-production-secret>
-FRONTEND_URL=https://askmydocs-eight.vercel.app
-OPENAI_API_KEY=<openai-api-key>
-OPENAI_CHAT_MODEL=gpt-4o-mini
-PORT=4000
-NODE_ENV=production
-```
-
-For local and production frontend support at the same time:
-
-```env
-FRONTEND_URL=http://localhost:3000,https://askmydocs-eight.vercel.app
-```
-
-## Full Docker Local Setup
-
-The project can run locally with Docker Compose.
-
-This starts:
-
-* PostgreSQL with pgvector
-* Backend API
-* Next.js frontend
-
-Build and start the default services:
+Create a root `.env` file:
 
 ```bash
-docker compose up --build
+cp .env.example .env
 ```
 
-Open the frontend:
+Do not commit real `.env` files or API keys.
+
+## Run Locally with Docker
+
+After creating your `.env` file and filling in the required values, build the Docker images:
+
+```bash
+docker compose build
+```
+
+Start PostgreSQL first:
+
+```bash
+docker compose up -d db
+```
+
+Run the database migrations:
+
+```bash
+docker compose run --rm migrate
+```
+
+Start the full local stack:
+
+```bash
+docker compose up -d
+```
+
+The app will be available at:
 
 ```txt
 http://localhost:3000
 ```
 
-API health check:
+The API health check is available at:
 
 ```bash
 curl http://localhost:4000/health
@@ -255,485 +172,162 @@ Expected response:
 }
 ```
 
-If this is your first time starting the local database, run migrations:
-
-```bash
-docker compose run --rm api pnpm --filter api db:migrate
-```
-
-Then restart the services if needed:
-
-```bash
-docker compose up -d
-```
-
-## Docker Services
-
-Default services:
-
-```txt
-db
-api
-web
-```
-
-Optional tool service:
-
-```txt
-db-studio
-```
-
-The `db-studio` service is not started by default. It is available through the `tools` profile.
+### Optional: Drizzle Studio
 
 Start Drizzle Studio:
 
 ```bash
-docker compose --profile tools up db-studio
+docker compose --profile tools up -d db-studio
 ```
 
-Then open the URL printed in the terminal, usually:
+Open the Drizzle Studio URL printed in the terminal, usually:
 
 ```txt
 https://local.drizzle.studio?host=localhost&port=4983
 ```
 
-Stop Drizzle Studio:
+Stop only Drizzle Studio:
 
 ```bash
 docker compose stop db-studio
 ```
 
-Stop all Docker services:
+Stop all running Docker Compose services without deleting containers or volumes:
+
+```bash
+docker compose stop
+```
+
+Remove containers and the Compose network when you are done:
 
 ```bash
 docker compose down
 ```
 
-Do not use this unless you intentionally want to remove local database volume data:
+Only remove the local database volume if you intentionally want to delete local data:
 
 ```bash
 docker compose down -v
 ```
 
-## Hybrid Local Development Setup
+## Run Locally for Development
 
-You can also run only the database in Docker and run API/frontend from your terminal.
-
-Start PostgreSQL with pgvector:
+Start only the database:
 
 ```bash
 docker compose up -d db
 ```
 
-Run migrations:
+Run migrations from the local API package:
 
 ```bash
-pnpm --filter api db:migrate
+pnpm db:migrate
 ```
 
-Start the backend locally:
+Start the API:
 
 ```bash
 pnpm dev:api
 ```
 
-Start the frontend locally:
+Start the frontend in another terminal:
 
 ```bash
 pnpm dev:web
 ```
 
-Open the app:
+Open:
 
 ```txt
-http://localhost:3000/ask
+http://localhost:3000
 ```
 
-Optional: open Drizzle Studio locally:
+## Migrations
 
-```bash
-pnpm dev:db-studio
-```
-
-## Database Migrations
-
-Migrations are stored in:
+Migration files are committed in:
 
 ```txt
 apps/api/drizzle/
 ```
 
-Generate migrations:
+They create the pgvector extension, users, documents, chunks, `document_status`, the `vector(1536)` embedding column, and the HNSW index.
+
+Useful commands:
 
 ```bash
-pnpm --filter api db:generate
+pnpm db:generate
+pnpm db:migrate
 ```
 
-Run migrations locally:
+Run production migrations against Neon with a direct connection string:
 
 ```bash
-pnpm --filter api db:migrate
+DATABASE_URL="<neon-direct-connection-string>" pnpm db:migrate
 ```
 
-Run migrations inside Docker:
+## API Overview
 
-```bash
-docker compose run --rm api pnpm --filter api db:migrate
-```
-
-Run migrations against production Neon database:
-
-```bash
-DATABASE_URL="<neon-direct-connection-string>" pnpm --filter api db:migrate
-```
-
-The migrations create:
-
-* `vector` extension
-* `users` table
-* `documents` table
-* `chunks` table
-* `document_status` enum
-* vector embedding column
-* HNSW vector index for similarity search
-
-## RAG Pipeline
-
-AskMyDocs uses the following retrieval-augmented generation flow:
-
-1. User uploads a `.txt` or text-based `.pdf` document.
-2. Backend extracts text from the uploaded file.
-3. Extracted text is normalized.
-4. Text is split into semantic chunks.
-5. Each chunk is embedded with OpenAI embeddings.
-6. Chunks and embeddings are stored in PostgreSQL using pgvector.
-7. User asks a question.
-8. The question is embedded.
-9. Backend performs vector similarity search over the authenticated user's chunks.
-10. Top relevant chunks are sent to the AI model as context.
-11. The model generates an answer using only the provided context.
-12. The response is streamed to the frontend.
-13. Citations are displayed under the AI answer and can be inspected in the source panel.
-
-## Embeddings
-
-The project uses:
-
-```txt
-text-embedding-3-small
-```
-
-Embedding dimension:
-
-```txt
-1536
-```
-
-The database vector column is configured to match this dimension.
-
-## Retrieval Strategy
-
-Current retrieval settings:
-
-```txt
-TOP_K = 4
-MIN_SIMILARITY = 0.15
-```
-
-The API retrieves the most relevant chunks belonging only to the authenticated user. Documents from other users are never queried.
-
-## Hallucination Prevention
-
-The answer generation prompt instructs the model to:
-
-* Answer only using retrieved context chunks
-* Avoid outside knowledge
-* Cite used chunks with `[1]`, `[2]`, etc.
-* Say the following when the answer is not available in the uploaded documents:
-
-```txt
-I don't know based on the uploaded documents.
-```
-
-The backend also returns an empty citation list when no sufficiently relevant chunks are found.
-
-## Authentication and Authorization
-
-Authentication flow:
-
-1. User registers with email and password.
-2. Password is hashed with Argon2.
-3. Backend returns a JWT.
-4. Frontend stores the token in local storage and cookie.
-5. Next.js Proxy checks the auth cookie for protected page navigation.
-6. Protected API requests include:
-
-```txt
-Authorization: Bearer <token>
-```
-
-Protected frontend routes:
-
-```txt
-/ask
-/documents
-/dashboard
-```
-
-Important note:
-
-The frontend proxy is only an early navigation guard. Real authorization is enforced by the backend API. Even if a user manually changes the cookie value, backend API requests still require a valid JWT.
-
-All document and chunk queries are scoped by the authenticated user's ID.
-
-## API Endpoints
-
-### Health
-
-```txt
-GET /health
-```
-
-### Auth
+Auth:
 
 ```txt
 POST /auth/register
 POST /auth/login
-GET /auth/me
+GET  /auth/me
 ```
 
-### Documents
+Documents:
 
 ```txt
-GET /documents
-POST /documents
+GET    /documents
+POST   /documents
 DELETE /documents/:id
 ```
 
-### Ask
+Ask:
 
 ```txt
 POST /ask
 POST /ask/stream
 ```
 
-The `/ask/stream` endpoint streams answer deltas to the frontend.
+`/ask/stream` uses Server-Sent Events and emits metadata, text deltas, errors, and a final done event.
 
-## Frontend Pages
+## Auth and Tenant Safety
 
-### `/login`
-
-User login page.
-
-### `/register`
-
-User registration page.
-
-### `/ask`
-
-Main application screen. Includes:
-
-* Document upload and list panel
-* Chat interface
-* Streaming AI answers
-* Citation chips
-* Source inspector panel
-
-### `/documents`
-
-Standalone document management page. Uses the same document panel logic as `/ask`.
-
-### `/dashboard`
-
-Simple account and navigation page.
-
-## PDF Support
-
-The current PDF implementation supports text-based PDFs.
-
-Scanned PDFs or image-only PDFs are not OCR-processed.
-
-The upload limit is intended to be suitable for small and medium text-based documents. Very large PDFs may need a background worker or queue-based processing in a production-grade system.
-
-## Known Limitations
-
-* No OCR support for scanned PDFs
-* Chat history is stored only in frontend state for the current session
-* No document preview viewer
-* No admin panel
-* No background worker queue yet; document processing currently happens during the upload request
-* Very large documents may require async background processing
-* Backend deployment URL must be configured manually for production frontend builds
-
-## Deployment
-
-### Database: Neon
-
-The production database runs on Neon PostgreSQL with pgvector enabled.
-
-Production runtime should use the pooled Neon connection string:
-
-```env
-DATABASE_URL=<neon-pooled-connection-string>
-```
-
-Migration commands should use the direct Neon connection string:
-
-```bash
-DATABASE_URL="<neon-direct-connection-string>" pnpm --filter api db:migrate
-```
-
-### Backend: Render
-
-The backend is deployed as a Render Web Service.
-
-Important Render environment variables:
-
-```env
-DATABASE_URL=<neon-pooled-connection-string>
-JWT_SECRET=<strong-production-secret>
-FRONTEND_URL=https://askmydocs-eight.vercel.app
-OPENAI_API_KEY=<openai-api-key>
-OPENAI_CHAT_MODEL=gpt-4o-mini
-PORT=4000
-NODE_ENV=production
-```
-
-After changing environment variables, redeploy the Render service.
-
-Health check:
+The frontend stores the returned JWT and sends it as:
 
 ```txt
-https://askmydocs-api.onrender.com/health
+Authorization: Bearer <token>
 ```
 
-### Frontend: Vercel
+The API is the real security boundary. Protected routes use `requireAuth`, and document/chunk queries include the authenticated user id. The frontend also protects `/ask`, `/documents`, and `/dashboard` for a better user experience.
 
-The frontend is deployed to Vercel from the monorepo.
+## Deployment Notes
 
-Vercel project settings:
+Frontend:
 
-```txt
-Framework Preset: Next.js
-Root Directory: apps/web
-Install Command: pnpm install
-Build Command: pnpm build
-Output Directory: .next
-```
+* Platform: Vercel
+* Root directory: `apps/web`
+* Build command: `pnpm build`
+* Output directory: `.next`
+* Required env: `NEXT_PUBLIC_API_URL`
 
-Required Vercel environment variable:
+Backend:
 
-```env
-NEXT_PUBLIC_API_URL=https://askmydocs-api.onrender.com
-```
+* Platform: Render
+* Service exposes port `4000`
+* Required env: `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL`, `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL`
 
-Production frontend:
+Database:
 
-```txt
-https://askmydocs-eight.vercel.app
-```
+* Platform: Neon
+* pgvector must be available
+* Use pooled connection for runtime
+* Use direct connection for migrations
 
-## Suggested Demo Flow
+## Current Limitations
 
-1. Open the deployed frontend.
-2. Register a new account.
-3. Upload a `.txt` file.
-4. Upload a text-based `.pdf` file.
-5. Wait for documents to become `ready`.
-6. Ask a question related to the uploaded document.
-7. Show the streamed answer.
-8. Click a citation and show the retrieved source chunk.
-9. Ask an unrelated question and show the fallback answer.
-10. Delete a document.
-11. Briefly show Docker Compose running locally.
-12. Briefly show the README setup instructions.
-
-## Local Useful Commands
-
-Install dependencies:
-
-```bash
-pnpm install
-```
-
-Run local frontend:
-
-```bash
-pnpm dev:web
-```
-
-Run local API:
-
-```bash
-pnpm dev:api
-```
-
-Run local Drizzle Studio:
-
-```bash
-pnpm dev:db-studio
-```
-
-Run full Docker setup:
-
-```bash
-docker compose up --build
-```
-
-Run migrations from Docker:
-
-```bash
-docker compose run --rm api pnpm --filter api db:migrate
-```
-
-Run optional Drizzle Studio from Docker:
-
-```bash
-docker compose --profile tools up db-studio
-```
-
-Check API logs:
-
-```bash
-docker compose logs -f api
-```
-
-Stop Docker services:
-
-```bash
-docker compose down
-```
-
-Remove local database volume only if intentionally needed:
-
-```bash
-docker compose down -v
-```
-
-Run production build checks:
-
-```bash
-pnpm --filter api build
-pnpm --filter web build
-docker compose build
-```
-
-## Submission Notes
-
-The application satisfies the core challenge requirements:
-
-* Authenticated users
-* User-scoped documents
-* Text/PDF upload
-* Text extraction
-* Chunking
-* Embedding
-* pgvector storage
-* Similarity search
-* Grounded AI answers
-* Citations
-* Streaming response
-* Dockerized database, backend, and frontend
-* Optional Dockerized Drizzle Studio
-* Deployed frontend, backend, and database
-* Documented local setup and migration flow
+* PDF support is text extraction only; scanned PDFs need OCR and are not supported.
+* Chat history is kept in frontend state and is not persisted.
+* Document processing runs during upload instead of a separate worker queue.
+* Very large files should be handled with stricter limits or background processing in production.

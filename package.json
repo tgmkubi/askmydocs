@@ -10,7 +10,10 @@
     "dev:db-studio": "pnpm --filter api db:studio",
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "db:migrate": "pnpm --filter api db:migrate",
+    "db:generate": "pnpm --filter api db:generate",
+    "db:studio": "pnpm --filter api db:studio"
   },
   "keywords": [],
   "author": "",

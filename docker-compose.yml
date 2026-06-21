@@ -40,6 +40,24 @@ services:
       db:
         condition: service_healthy
 
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    profiles:
+      - tools
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://askmydocs:askmydocs@db:5432/askmydocs
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: http://localhost:3000
+    command: [ "pnpm", "--filter", "api", "db:migrate" ]
+    depends_on:
+      db:
+        condition: service_healthy
   web:
     build:
       context: .
