@@ -2,25 +2,18 @@
 
 AskMyDocs is a full-stack document Q&A app. A user can register, upload `.txt` or text-based `.pdf` files, and ask questions against only their own documents. The API extracts text, chunks it, creates OpenAI embeddings, stores vectors in PostgreSQL with pgvector, retrieves relevant chunks, and streams grounded answers with citations to the Next.js UI.
 
+## Demo Video
+
+[Watch the demo video](https://drive.google.com/file/d/1tDE_5qCcl29r_MblVRc9zIr9vEMZp5KA/view?usp=drive_link)
+
 ## Live App
 
-Frontend:
+Frontend: [https://askmydocs-eight.vercel.app](https://askmydocs-eight.vercel.app)
 
-```txt
-https://askmydocs-eight.vercel.app
-```
+Backend API: [https://askmydocs-api.onrender.com](https://askmydocs-api.onrender.com)
 
-Backend API:
+Database: Neon PostgreSQL with pgvector
 
-```txt
-https://askmydocs-api.onrender.com
-```
-
-Database:
-
-```txt
-Neon PostgreSQL with pgvector
-```
 
 ## Stack
 
