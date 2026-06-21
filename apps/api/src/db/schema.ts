@@ -1,10 +1,3 @@
-/* users
-documents
-chunks
-document_status enum
-embedding vector(1536)
-chunks_embedding_hnsw_idx */
-
 import {
     index,
     integer,

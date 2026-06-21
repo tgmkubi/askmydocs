@@ -47,6 +47,8 @@ askRouter.post("/", requireAuth, async (req, res, next) => {
             .select({
                 id: chunks.id,
                 documentId: chunks.documentId,
+                documentOwnerId: documents.userId,
+                chunkOwnerId: chunks.userId,
                 filename: documents.filename,
                 content: chunks.content,
                 chunkIndex: chunks.chunkIndex,
@@ -122,6 +124,8 @@ askRouter.post("/stream", requireAuth, async (req, res, next) => {
             .select({
                 id: chunks.id,
                 documentId: chunks.documentId,
+                documentOwnerId: documents.userId,
+                chunkOwnerId: chunks.userId,
                 filename: documents.filename,
                 content: chunks.content,
                 chunkIndex: chunks.chunkIndex,
